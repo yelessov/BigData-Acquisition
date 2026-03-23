@@ -1,0 +1,33 @@
+version: "3"
+
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    ports:
+      - "9870:9870"
+      - "8020:8020"
+    environment:
+      - CLUSTER_NAME=movie-cluster
+    
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    depends_on:
+      - namenode
+    environment:
+      # This tells the worker EXACTLY where the manager is!
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+      - SERVICE_PRECONDITION=namenode:9870
+
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
+    ports:
+      - "8088:8088"
+    depends_on:
+      - namenode
+      - datanode
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+      - SERVICE_PRECONDITION=namenode:9870
