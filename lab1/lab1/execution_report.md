@@ -1,77 +1,55 @@
-Lab 1 Execution Report: Hadoop MapReduce Movie Analytics
-Execution Date: 2026-03-23
-Execution Mode: Hadoop Pseudo-Distributed (Docker Compose)
-Application: Dataset Join & Average Calculation (MapReduce Streaming)
+# Lab 1 Execution Report: Hadoop MapReduce Movie Analytics
 
-📥 INPUTS
+**Execution Date:** 2026-03-23  
+**Execution Mode:** Hadoop Pseudo-Distributed (Docker Compose)  
+**Application:** Dataset Join & Average Calculation (MapReduce Streaming)  
 
-1. Infrastructure
+## 📥 INPUTS
 
-Docker Containers:
+### 1. Infrastructure
+* **Docker Containers:**
+  * `namenode` (Hadoop 3.2.1) - Ports: 9870 (Web UI), 8020 (HDFS)
+  * `datanode` (Hadoop 3.2.1) - Port: 9864
+  * `resourcemanager` (YARN) - Port: 8088
+* **Hadoop Version:** 3.2.1 (bde2020 image)
+* **Dependencies:** Python 3.5 (Manually provisioned via Debian Stretch archives)
+* **OS:** Linux (Container host)
 
-namenode (Hadoop 3.2.1) - Port 9870 (Web UI), 8020 (HDFS)
+### 2. Dataset
+* **Files:** `movies.csv` (496kB) and `ratings.csv` (2.49MB)
+* **Source Dataset:** MovieLens (Small)
+* **Local Source Location:** `lab1/` directory
+* **HDFS Location:** `/input/`
+* **Data Structure:** * `movies.csv`: `movieId,title,genres`
+  * `ratings.csv`: `userId,movieId,rating,timestamp`
 
-datanode (Hadoop 3.2.1) - Port 9864
+### 3. Application Code
+* **Framework:** Hadoop Streaming
+* **Scripts:**
+  * `join_mapper.py` (Tags `movies.csv` records as `A_movie` and `ratings.csv` records as `B_rating`)
+  * `join_reducer.py` (Calculates the mathematical average of ratings grouped by `movieId`)
+* **Orchestration:** `run.sh` (Bash script for data ingestion and job execution)
+* **Language:** Python 3
 
-resourcemanager (YARN) - Port 8088
+### 4. Job Configuration
+* **Goal:** Perform a Reduce-Side Join to calculate the average user rating for every movie.
+* **Input:** `hdfs://namenode:8020/input/*`
+* **Output:** `hdfs://namenode:8020/output`
+* **Streaming Tool:** `/opt/hadoop-3.2.1/share/hadoop/tools/lib/hadoop-streaming-3.2.1.jar`
 
-Hadoop Version: 3.2.1 (bde2020 image)
+---
 
-Dependencies: Python 3.5 (Manually provisioned via Debian Stretch archives)
+## ⚙️ EXECUTION FLOW
 
-OS: Linux (Container host)
+**Phase 1: Environment Provisioning & Data Ingestion**
+1. Booted cluster via `docker-compose up -d`.
+2. Paused for 45 seconds to allow DataNode registration.
+3. Cleaned previous HDFS directories (`hdfs dfs -rm -r -f /input /output`).
+4. Copied local files and Python scripts to the `namenode` container via `docker cp`.
+5. Ingested datasets into HDFS via `hdfs dfs -put`.
 
-2. Dataset
-
-Files: movies.csv and ratings.csv (MovieLens Small Dataset)
-
-Source Location: Local project directory (lab1/)
-
-HDFS Location: /input/
-
-Data Structure: movies.csv contains ID and Title; ratings.csv contains ID and User Ratings.
-
-3. Application Code
-
-Framework: Hadoop Streaming
-
-Scripts:
-
-Mapper: join_mapper.py (Tags and emits data)
-
-Reducer: join_reducer.py (Aggregates and calculates averages)
-
-Orchestration: run.sh (Automates cleanup, ingestion, and job execution)
-
-Language: Python 3
-
-4. Job Configuration
-
-Goal: Perform a Reduce-Side Join on movieId to calculate the mathematical average rating for every movie in the dataset.
-
-Input: hdfs://namenode:8020/input/*
-
-Output: hdfs://namenode:8020/output
-
-⚙️ EXECUTION FLOW
-
-Phase 1: Environment Provisioning & Data Ingestion
-
-Booted cluster via docker-compose up -d.
-
-Paused for 45 seconds to allow DataNode registration.
-
-Cleaned previous HDFS directories (hdfs dfs -rm -r -f /input /output).
-
-Copied local files to the namenode container (docker cp).
-
-Ingested datasets into HDFS (hdfs dfs -put).
-
-Verified: Successfully copied to namenode:/movies.csv
-
-Phase 2: Job Execution (MapReduce Join)
-
-Plaintext
+**Phase 2: Job Execution (MapReduce Join)**
+```text
 --- Running Hadoop Streaming Job ---
 Submitting tokens for job: job_local1450663965_0001
 map 0% reduce 0%
@@ -80,7 +58,6 @@ map 100% reduce 100%
 Job job_local1450663965_0001 completed successfully
 Output directory: /output
 📤 OUTPUTS
-
 1. Sample Results (/output/part-00000)
 
 Plaintext
@@ -91,28 +68,26 @@ Waiting to Exhale (1995)    2.36
 Father of the Bride Part II 3.07
 2. Artifacts
 
-Processed output is successfully stored in the HDFS /output directory and can be viewed via hdfs dfs -cat /output/part-00000.
+Processed output is successfully stored in the HDFS /output directory and can be viewed via docker exec namenode hdfs dfs -cat /output/part-00000.
 
 🔍 KEY OBSERVATIONS & REASONING
-
 1. Infrastructure Networking
 
-Result: The initial cluster boot resulted in 0 datanode(s) running, causing the pipeline to fail because HDFS had zero capacity.
+Issue: The initial cluster boot resulted in 0 datanode(s) running, preventing file uploads to HDFS.
 
-Reasoning: The bde2020 DataNode container requires explicit instructions on where to find the NameNode. We updated docker-compose.yml to inject the CORE_CONF_fs_defaultFS=hdfs://namenode:8020 environment variable, immediately restoring cluster health.
+Reasoning & Fix: The bde2020 DataNode container requires explicit routing to the NameNode. We updated docker-compose.yml to inject the CORE_CONF_fs_defaultFS=hdfs://namenode:8020 environment variable, immediately restoring cluster health.
 
 2. Container Dependency Limits
 
-Result: The MapReduce job initially crashed with a Cannot run program "python3" error.
+Issue: The MapReduce job crashed with Cannot run program "python3".
 
-Reasoning: Lightweight Docker images do not include Python by default. Furthermore, the underlying Debian "Stretch" OS had archived its package repositories. We successfully bypassed this by running apt-get -o Acquire::Check-Valid-Until=false update against the archive servers and manually installing Python 3 inside the running NameNode.
+Reasoning & Fix: The Docker images do not include Python by default, and the underlying Debian "Stretch" OS had archived its package repositories. We bypassed this by rewriting /etc/apt/sources.list to point to http://archive.debian.org/debian, disabling validity checks, and manually running apt-get install -y python3 as root inside the running NameNode.
 
 3. Code Compatibility
 
-Result: Python scripts were refactored to use "{}\t{}".format() instead of modern f-strings (f"{var}").
+Issue: Syntax errors in the mapper and reducer.
 
-Reasoning: The legacy container environment installed Python 3.5. F-strings were introduced in Python 3.6, necessitating a syntax downgrade to ensure successful execution within the MapReduce streaming tasks.
+Reasoning & Fix: The legacy container environment installed Python 3.5. F-strings (f"{var}") were introduced in Python 3.6. We refactored the Python scripts to use "{}\t{}".format() to ensure successful execution within the Hadoop Streaming tasks.
 
 🚀 CONCLUSION
-
-Lab 1 was successfully executed. The pseudo-distributed Hadoop environment was stabilized by resolving internal Docker networking and dependency constraints. The Python-based MapReduce scripts accurately joined two distinct CSV files and calculated the expected aggregations, resulting in a fully automated, verifiable Big Data pipeline.
+Lab 1 was successfully completed. The pseudo-distributed Hadoop environment was stabilized by resolving internal Docker networking and dependency constraints. The Python-based MapReduce scripts accurately joined two distinct CSV files and calculated the expected aggregations, resulting in a fully automated, verifiable Big Data pipeline.
