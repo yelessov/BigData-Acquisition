@@ -1,0 +1,24 @@
+services:
+  spark-master:
+    image: spark:latest
+    container_name: spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+
+  spark-worker:
+    image: spark:latest
+    container_name: spark-worker
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    depends_on:
+      - spark-master
+
+  jupyter:
+    image: jupyter/pyspark-notebook:latest
+    container_name: jupyter-lab
+    user: root
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/home/jovyan/work
