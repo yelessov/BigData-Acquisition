@@ -281,10 +281,30 @@ docker exec namenode hdfs dfs -cat /output/part-00000
 - **Bash shell** (Linux/macOS) or Windows Subsystem for Linux
 - **~8 GB** disk space for Hadoop images and data
 
-### Step 1: Start Hadoop Cluster
+### Quick Start (3 Commands)
 
 ```bash
 cd lab1/lab1
+
+# 1. Start Hadoop cluster
+docker-compose up -d
+
+# 2. Verify cluster health
+docker exec namenode hdfs dfsadmin -report
+
+# 3. Run the MapReduce job
+./run.sh
+```
+
+This will execute the full pipeline and output movie ratings to your terminal.
+
+---
+
+### Step-by-Step Explanation
+
+#### Step 1: Start Hadoop Cluster
+
+```bash
 docker-compose up -d
 ```
 
@@ -296,25 +316,88 @@ docker-compose up -d
  ✔ Service resourcemanager Started
 ```
 
-**Verify cluster health:**
+#### Step 2: Verify Cluster Health
+
 ```bash
 docker exec namenode hdfs dfsadmin -report
 ```
 
-### Step 2: Run the MapReduce Pipeline
+**Expected Output:**
+```
+Configured Capacity: 240120725504 (223.63 GB)
+Present Capacity: 214236643328 (199.52 GB)
+DFS Remaining: 214236618752 (199.52 GB)
+DFS Used: 24576 (24 KB)
+
+Live datanodes (1):
+Name: 172.17.0.3:9866 (datanode)
+```
+
+#### Step 3: Run the MapReduce Pipeline
 
 ```bash
-bash run.sh
+./run.sh
 ```
 
-**Full Execution:**
+**Expected Output:**
 ```
-Cleaning previous outputs...
-Creating input directory...
-Copying files to namenode...
-Putting data into HDFS...
-Running Hadoop Streaming job...
-[Output]
+Job complete! Here are your movie ratings:
+Toy Story (1995)	3.92
+Jumanji (1995)	3.43
+Grumpier Old Men (1995)	3.26
+Waiting to Exhale (1995)	2.36
+Father of the Bride Part II	3.07
+...
+[Full results continue]
+```
+
+---
+
+### Expected Results
+
+The script outputs average movie ratings computed from the user ratings data. The format is:
+
+```
+Movie Title (Year)	Average Rating
+```
+
+Example top-rated movies:
+```
+Shawshank Redemption, The (1994)	4.49
+Fight Club (1999)	4.28
+Pulp Fiction (1994)	4.03
+```
+
+---
+
+### Troubleshooting
+
+**Problem:** `docker exec namenode hdfs dfsadmin -report` shows no live datanodes
+
+**Solution:** Wait 30-45 seconds for DataNode registration, then retry.
+
+```bash
+sleep 45
+docker exec namenode hdfs dfsadmin -report
+```
+
+**Problem:** MapReduce job fails with "python3: command not found"
+
+**Solution:** The lab requires Python 3 to be installed in the namenode container. This should be handled automatically, but if it fails:
+
+```bash
+docker exec -u root namenode bash -c \
+  "echo 'deb http://archive.debian.org/debian stretch main' > /etc/apt/sources.list && \
+   apt-get -o Acquire::Check-Valid-Until=false update && \
+   apt-get install -y python3"
+```
+
+**Problem:** `docker-compose: command not found`
+
+**Solution:** Install Docker Desktop for your OS:
+- **macOS**: `brew install docker` or install Docker Desktop
+- **Linux**: `sudo apt-get install docker-compose`
+- **Windows**: Install Docker Desktop
 Toy Story (1995)	3.92
 Jumanji (1995)	3.43
 Grumpier Old Men (1995)	3.26

@@ -6,6 +6,19 @@ Lab 2 demonstrates a **distributed machine learning pipeline** using Apache Spar
 
 ---
 
+## Quick Start
+
+```bash
+cd /Users/yelessov/Desktop/movie-hadoop-project/lab2
+docker compose up -d
+python3 scripts/generate_data.py
+docker exec jupyter-lab spark-submit /home/jovyan/work/scripts/spark_analysis.py
+```
+
+**Expected Result:** Model achieves ~80% accuracy on cyber threat detection.
+
+---
+
 ## Architecture
 
 ```
@@ -149,7 +162,7 @@ predictions = model.transform(test)
 evaluator = MulticlassClassificationEvaluator(labelCol="is_attack", 
                                               metricName="accuracy")
 accuracy = evaluator.evaluate(predictions)
-# Result: 79.78% Accuracy
+# Result: ~80% Accuracy (varies slightly with random splits)
 ```
 
 **Step 7: RDD Operations & Output**
@@ -217,9 +230,13 @@ docker exec -it jupyter-lab spark-submit /home/jovyan/work/scripts/spark_analysi
 **Expected Output:**
 ```
 ...
+**Expected Output:**
+```
+...
 ==============================
-LAB 2 RESULTS: Model Accuracy: 79.78%
+LAB 2 RESULTS: Model Accuracy: 80.08%
 ==============================
+...```
 ...
 ```
 
@@ -284,7 +301,7 @@ SessionID: 88102 | ThreatDetected: False
 | Training Set | 160,000 (80%) |
 | Test Set | 40,000 (20%) |
 | Model | Random Forest (50 trees) |
-| **Accuracy** | **79.78%** |
+| **Accuracy** | **~80%** |
 | Output Partitions | 10 |
 
 ---

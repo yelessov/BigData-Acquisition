@@ -14,5 +14,5 @@ data = {
 }
 
 df = pd.DataFrame(data)
-df.to_csv('data/network_traffic.csv', index=False)
+df.to_csv('scripts/data/network_traffic.csv', index=False)
 print("Successfully generated 200,000 records in data/network_traffic.csv")
